@@ -1,0 +1,2961 @@
+02. Refine your Data Pipeline
+
+02.1 Schedule Data Jobs
+
+
+One Time vs Continuous Executions
+
+If you set up Celonis in a productive environment, your source systems constantly produce 
+new data.
+
+To always stay up to date, you need to run your Extractions and Transformations and Data 
+Model Loads in a continuous manner. To do so, you could execute the respective Data Jobs 
+manually every now and then, but naturally, we instead want to automate that process.
+
+For a continuous and automated data load you can use the scheduling functionality. 
+Schedules allow you to sequentially execute Data Jobs on a regular basis.
+
+
+
+Schedules run entire Data Jobs
+
+Note that schedules can?t be applied to single tasks?whether Extraction, Transformation, 
+or Data Model Load?they only apply to entire Data Jobs. This means, if you want specific 
+tasks to run on a different schedule, you should set them up in different Data Jobs.
+
+
+
+Adding Data Model Loads Tasks
+
+A small reminder?if a Data Job runs Extractions and Transformations, consider adding the 
+applicable Data Model Load task(s) within the same Data Job. As soon as the Data Model is 
+reloaded, your Analyses, Apps and other objects based on the Data Model are 
+automatically refreshed with the new data. Without a Data Model Load, your Data Job will 
+have no effect on your Data Model. 
+
+With Data Jobs using separate Data Model Loads, you can easily manage multiple 
+processes in one Data Pool by defining which Data Model is loaded in which Data Job.
+
+Also, the Data Model tasks you set up can be partial. This means if a schedule only extracts 
+and transforms certain tables, you can choose to only update the affected tables in your 
+Data Model Load task.
+
+
+
+Schedules are not for Replication Cockpit
+
+Note that outside of schedules, you can configure Delta loads using the Replication Cockpit 
+if you have set up a real-time connection. With the Replication Cockpit, your loads are 
+trigger-based and not schedule-based. A mix of both approaches is necessary if you are 
+using the Replication Cockpit. 
+
+For example, if you use the Replication Cockpit for certain transactional tables (both full 
+and delta extractions and transformations), you will still need scheduled Data Jobs for: 
+
+Data Model Loads,
+the Delta and Full loads of tables you choose not to include in your Replication setup.
+The Real Time Process Connectors you download from the Celonis Marketplace use a 
+preset mix of the Replication Cockpit and Data Jobs: 
+
+
+
+
+For a review of the Replication Cockpit setup, review the Connect to Systems, Extract Data, 
+and Transform Data courses in the Get Data into the EMS track.
+
+The rest of this section will zoom in on the Data Job scheduling functionality.
+
+Trigger-based Schedules
+
+To optimize your schedules, you can use trigger-based schedules. Here you simply select 
+"Trigger-based schedule" and decide which schedule acts as a trigger. 
+
+
+
+With trigger-based schedules, schedules no longer run based on a predefined frequency 
+but start once the triggering schedule has completed successfully. This means you can 
+execute schedules one after the other with no time loss in between:
+
+
+
+A schedule could also trigger itself in an endless loop?this would work well for example 
+when you need a constant reload of a Data Model with the Replication Cockpit
+
+
+
+Parallel Executions
+
+By default, a schedule runs its data jobs sequentially, i.e. one after the other. If a 
+schedule's data jobs have no overlap and do not access the same data, consider using 
+parallel executions. 
+
+
+
+
+In this case, this schedule's two Data Jobs run in parallel as soon as the schedule starts. 
+Together with a trigger-based schedules, you could then set up a dependency tree of 
+schedules that trigger one another and run multiple Data Jobs in parallel: 
+
+
+
+When setting up parallel Data Jobs, make sure they do not work with the same tables as 
+this could lead to in a "race condition", causing issues in your data. 
+
+When Full? When Delta? How Often?
+
+How you set up your schedules and Data Jobs really depends on these three questions: 
+
+How often should this data be refreshed? 
+What is the effect on the source system of loading this data?
+Is the Replication Cockpit in use? 
+In answering these questions, you can derive a few basic principles.  
+
+Prioritize Delta Loads for Transactional Data
+
+In general, it makes sense to use Delta Loads whenever possible for transactional data. 
+Chiefly because you want to reduce your load times and the load on source systems. In 
+terms of frequency, Delta loads for transactional tables will typically run hourly or daily. By 
+transactional, we mean any data directly affecting your Activity and Case tables.
+On some occasions, frequently changing master data such as Exchange Rates, customer or 
+material data can also warrant a daily delta load.
+Use Full loads infrequently and only during off times
+
+Use Full loads to refresh all data and run them in off times?e.g. at night, at a daily or 
+weekly frequency?to reduce the load on source systems during peak times. Ultimately, 
+full loads need to run for all tables at some point but some may be at a higher frequency if 
+there is no delta load possible or metadata changes frequently occur.
+If Replication Cockpit, use mostly Full loads and Data Model loads
+
+In case the Replication Cockpit handles extractions and transformations for transactional 
+data, you may just schedule an hourly or self-triggered reload of the Data Model and rely 
+on regular full loads (daily or weekly) to handle all tables not covered by the Replication 
+Cockpit and refresh the ones that are. Also, make sure to avoid a conflict between your RC 
+and DJ extractions and transformations.
+
+For the Data Model you can also consider a trigger-based schedule. (more on this on next 
+page)
+
+Consider granular Data Jobs with different tasks
+
+Large data jobs with all extractions and transformations are only appropriate for 
+infrequent full loads. Make sure to consider splitting your extractions, transformations, 
+and Data Model loads across multiple Data Jobs to have more flexibility with schedules.
+Learning from Process Connectors
+
+Every Marketplace Process Connector comes with a suggested combination of Scheduled 
+Data Jobs based on best practices for the system and process at hand. A great way to get 
+familiar with scheduling best practices is to have a close look at the suggested schedules, 
+Data Jobs, and their tasks when you download a Process Connector.
+
+
+
+
+Checking Execution
+
+To see if your schedules were executed successfully, you can always navigate to the 
+Execution History (in the top right corner) to check the status, execution times, and logs of 
+your schedules and jobs.
+
+
+
+
+
+
+Schedule Logs are Data Job Logs
+
+When you click on a Schedule Log, you will see that it simply takes you to a similar Log 
+screen as when you click on Data Job Logs. The only difference is that one extra level is 
+added to your logs?Data Jobs. 
+Logs when clicking on Schedule Logs: 
+
+
+
+Logs when looking at Data Job Logs: 
+
+
+
+
+The Order of Transformations
+
+You can determine the order of schedules, but how do you determine the order of tasks 
+within Data Jobs? 
+
+When you run a Data Job, you would assume its transformations run sequentially as they 
+appear in the Data Job: 
+
+
+
+
+The more transformations you have, the greater the chances this leads to lost efficiency, 
+especially if many of these transformations don't depend on one another and could run in 
+parallel. 
+
+Historically, transformations ran sequentially but in 2022, Celonis introduced a new 
+important feature that significantly accelerates Data Job load times: Smart ETL 
+
+Using Smart ETL
+
+Instead of having to re-order your transformations manually, Celonis intelligently runs your 
+transformations in the optimal way by doing the following: 
+
+Calculates optimal transformation order: Before each Data Job execution, Celonis 
+calculates the optimal transformations execution order based on the dependencies across 
+all in a Data Job.
+
+Creates a DAG (Directed Acyclic Graph) representing the most efficient execution order to 
+optimize for parallelism gets created automatically in the background
+
+Uses DAG to trigger all Transformation Tasks based on the optimal calculated execution 
+order
+
+This graphic captures the difference between sequential and optimized transformation 
+executions: 
+
+
+
+
+Smart ETL is turned on by default* in your environment so you do not need to activate 
+anything. It applies to both manual and schedule Data Job executions. 
+
+Monitor your Data Jobs
+Troubleshoot
+
+It's important for you to know the ins and outs of troubleshooting your Data Pipeline from 
+the moment you connect to source systems to when you set up your Data job schedules or 
+replications using the Replication Cockpit. Here is a list of what to keep in mind in Data 
+Integration:
+
+Cerrar Data Pool List View and Filtering
+When entering Data Integration you can immediately see which Data Pools have issues in 
+their pipelines thanks to the status icons:
+
+
+
+From here you can enter a Data Pool with an issue and filter to find the root cause. Bear in 
+mind that you can filter on any part of the pipeline and this filter will apply across your 
+entire Data Flow diagram:
+
+
+
+All affected or causing objects relevant to the filter are shown in the diagram:
+
+
+
+Cerrar Connect to Systems
+When connecting, make sure to Test your Connection and check out the Help 
+Documentation for any system-specific pre-work required.
+
+
+
+Cerrar Extract Data with Data Jobs
+Syntax errors
+
+When setting up an extraction, you should look out for the "No potential issues found" 
+onscreen prompt before saving your extractions. This checks for syntax issues in your 
+filters and will not appear as long as they are not fixed:
+
+
+
+If you do see issues, you can simply click to get a list and go through them one by one:
+
+
+
+
+Note that the Delta filter issue will often appear by default but you do not need to fix it if 
+you are not planning on having Delta executions:
+
+
+
+For obvious errors, you'll see a warning right below the filter box:
+
+
+
+
+Extraction Preview
+
+Depending on the Extraction method you use, you will have differing levels of log access. If 
+available, before running new or adjusted table extractions, it's a good idea to use the 
+Extraction Preview and look at the logs to see if everything runs smoothly.
+
+
+
+
+Checking Logs
+
+During or after an extraction execution, you can of course check its logs at the Data Job 
+level:
+
+
+
+
+
+Enable debug mode for more detail
+
+Lastly, if you need more details in the logs, enable debug mode in your Extraction Settings:
+
+
+
+Cerrar Transform Data with Data Jobs
+Check transformations in the SQL Workbench
+
+When working on transformations, make sure to run them in the SQL Workbench before 
+you run them at the Data Job level. This helps you exclude simple syntax errors upfront:
+
+
+
+
+Run portions of your scripts
+
+Remember you can run a portion of your script by highlighting it and selecting execute.
+
+As with extractions, you can see logs on your transformations at the Data Job level and 
+click to drill down to a specific transformation:
+
+
+
+
+Cerrar Extract and Transform with the Replication Cockpit
+Checking Table Statuses
+
+With the Replication Cockpit, for each table, under the Monitoring tab, you'll see basic logs 
+for your Replications and Initializations. You can also directly see the status of each 
+Replication for each table under your connection (Scope):
+
+
+
+Detailed logs are disabled by default as they would consume an immense amount of 
+storage space. That said, you can temporarily enable them for specific tables under 
+Replication Configuration:
+
+
+
+Cerrar Load your Data Model
+For your Data Model Load, warnings and errors appear directly under the Data Loads tab 
+in your Data Model. This applies whether you run the load manually or as part of a Data 
+Job.
+
+
+
+Most issues will be connected to how your tables are connected and how accurate your 
+timestamps and case keys are.
+
+You can also check how many rows per table were loaded by clicking on details during or 
+after the load:
+
+
+
+
+
+Cerrar Schedule your Data Jobs
+The logs for Schedules are the same as Data Job logs. That is because Schedules run Data 
+Jobs. To see Schedule logs, simply go Execution History:
+
+
+
+
+
+Monitorizaci¢n (Monitoring)
+
+If your Data Pipeline is set up end to end, then it is theoretically time for you to sit back 
+and enjoy the beauty of your work. That said, you should make sure to keep an eye on 
+things to ensure everything keeps running smoothly. Here are a few important points on 
+Monitoring:
+
+Cerrar Data Job Alerts
+For each Data Job, you can configure alerts and indicate when you want to receive an 
+email notification?at failure, at success, if a data job is skipped, or if a certain duration is 
+exceeded:
+
+
+
+
+
+Cerrar Replication Alerts
+To get notified every time there is a Replication failure?in the extraction or 
+transformation?you can enable alerts at the connection level under "Settings":
+
+
+
+
+
+
+
+Cerrar Data Model Subscriptions
+You can subscribe to Data Models to receive an email if the Data Model fails.
+
+
+
+Cerrar Schedule Monitoring
+You can also enable monitoring from within Schedule Settings.
+
+
+
+In this case, the monitoring is done by Celonis and you should only activate it for critical 
+productive cases. In case of any critical errors, Celonis is notified and can potentially take 
+action. Note that if the errors are due to infrastructural issues or wrong configurations, the 
+schedule may be excluded from monitoring.
+
+
+
+Cerrar Custom Monitoring
+In the Data Pool List view, click on the Monitoring icon in the top right to go to Monitoring. 
+(Yes this is the same icon as Execution History within a Data Pool)
+
+
+
+Here you can enable "Custom Monitoring" to monitor your Data Pipeline health. This 
+option creates an independent Data Pool with three Data Models?Data Consumption 
+Monitoring, Data Pipeline Monitoring, and Replication Cockpit Monitoring?for you to use 
+in Analyses and customize to your liking.
+
+
+
+To work with the Data Model in the Studio, you can download the ready-to-use package 
+called Data Pipeline & Consumption Monitor from the Marketplace.
+
+
+
+Note that the Data Model created here is not counted towards license limits.
+
+This feature is one of the best ways to gain a full overview of your Data Pipeline, especially 
+when you are working with multiple processes and Data Pools.
+
+Check out the Help page on this feature for more information.
+
+Cerrar Data Consumption
+With every productive Celonis license, there is a limit to how much data you can consume. 
+In the Data Pool List view, you can see your total consumption directly in the top left. You 
+can also see below every Data Pool how much data is consumes:
+
+
+
+Need to see which tables within a Data Pool consume the most? Simply to Data 
+Consumption in the top right and then search for your Data Pool and sort by Size:
+
+
+
+
+
+
+
+Validate your Process Flow
+
+uestions to Ask for Validation
+
+When entering the validation phase of a project or performing an update to Data Jobs in 
+Data Integration, your team needs to answer these validation questions:
+
+Does the process flow look generally plausible?
+Is the number of cases correct?
+Are activities correctly defined and are they appearing in the right quantity and right 
+sequence?
+Are individual cases represented exactly in the same way in Celonis as in the source 
+system?
+Are the basic KPIs, such as Total Net Value, correct?
+In most cases, the person to confirm the data will either be a Process Validation Lead or a 
+Business Domain Expert. Whether this is you or not, you will most likely be involved in 
+fixing any issues found. In most cases, your issues to fix will be in your transformation 
+tasks.
+
+Keep in mind that you can do most of your validations in the Studio using either Analyses 
+or the Data Explorer. We generally recommend you use the Data Explorer for the majority 
+of validations but where applicable, you'll see examples of both validation approaches.
+
+For more information on the Data Explorer, make sure to have a look at our Data Explorer 
+Training and the respective documentation.
+
+Let's look at each of the validation questions in more detail
+
+Plausibility Check
+
+The first step in Process Validation is a general plausibility check. A Business Domain Expert 
+needs to check different aspects of the process like process sequence, timestamps, 
+number of cases, and KPIs for general plausibility.
+
+Different filters can be applied in this step to make sure the process can be viewed from a 
+meaningful perspective to make sure the Business Domain Expert can relate to the figures 
+shown.
+
+The general plausibility check can lead to three main insights:
+
+The representation in Celonis is realistic. Great, let?s jump to the next validation checks!
+The representation in Celonis seems unrealistic. You need to investigate the problem in 
+more detail. When doing so you might figure out that the representation in Celonis was 
+correct. This already results in an interesting finding.
+The representation in Celonis is wrong. You need to adapt the Data Model accordingly.
+
+Case Count
+
+In a next step you need to validate the number of cases in Celonis against source system 
+entries.
+
+Here you need to answer the following questions:
+
+Is the number of cases correct (e.g. purchase order items)?
+E.g. Are x number of purchase order items realistic in the considered period of time?
+Are the numbers of the different case types correct (e.g. types of purchase order items)?
+E.g. Does the document type ?Standard Purchase Order? really occur in most of the cases?
+Is the distribution over time correct?
+E.g. Is it possible that the creation of purchase order items faced a peak in October 2019?
+In the Data Explorer
+
+A fast way to check if there is no built up Analysis or view is to use the Data Explorer. Here 
+is a an example with a sample data set where we select the case table (EKPO):
+
+
+Creating a Data Explorer is similar to creating an Analysis, simply click the plus button in 
+your Studio package and select Data Explorer.
+
+In an Analysis
+
+You could answer these questions using an Analysis in the Studio: 
+
+
+
+
+
+What if the information is incorrect?
+
+
+If the case count in Celonis is not representing the number in the source system, you need 
+to perform the following checks: 
+
+Count the number of cases on the database. If it doesn't match, you need to check if the 
+extraction is configured correctly. 
+Check if any cases are lost due to filtering conditions. 
+Validate if join conditions (e.g. inner joins of the case table to text tables) result in lost 
+cases.
+
+Activity Validation
+
+By this step, the process looks generally plausible and the number of cases are matching. 
+Let's dive into the validation of activities to make sure that every detail of the process 
+representation is correct.
+
+Cerrar Activity Definitions
+Validation of Activity Definitions
+
+In this step, a source system expert with knowledge of the underlying table structure 
+confirms the definition of the activities. This includes a validation of:
+
+The activity names
+The timestamps used
+Any filters / conditions applied
+The change fields considered for change activities.
+Activity definitions exist for standard processes available in Data Integration via the 
+"Import Template" button (Marketplace). If you are deploying a custom process, you will 
+need to define these activities by yourself.
+
+
+Now that you have validated the definition of activities, it's time to check if all activities are 
+showing up correctly to make sure you did not miss anything.
+
+Cerrar Number of Activities
+
+In the Data Explorer
+
+To check the number of Activities, you can use the Data Explorer by simply selecting your 
+Activity table, turning on the "Groups & aggregate" toggle and counting the entries of the 
+activity name column. With this view you can quickly check the visibility and frequency of 
+your activities.
+
+
+
+
+
+In an Analysis
+
+Alternatively, you can jump into a Celonis Analysis in the Studio and examine the process 
+flow itself by using the Process Explorer. Here are the steps:
+
+Check Visibility: First, check if all activities defined are visible in the analysis. If this is the 
+case you know that the activity transformations are all working.
+
+
+Check Frequency: Validate if activities are showing up in the right frequency. The "List" 
+view in the Process Explorer provides a list of all activities present and the number of cases 
+in which they appear. For example, you might spot that only in 50% of the cases a 
+purchase requisition appears prior to the order which might be unrealistic.
+
+
+
+Troubleshooting
+
+Check individual cases: If you identify any activity with too high or too low numbers you 
+need to verify that activity definition and you can check individual cases to verify if you can 
+see activities in the source system which are not visible in Celonis.
+
+Apply filters: It can help to apply filters for this investigation. For example, you might know 
+that for a certain purchase order type there has to be a purchase requisition for all cases. If 
+this is the case, you can apply that filter and check the source system against Celonis. This 
+way you narrow down the cases where this activity is missing which allows you to assess 
+the reason for that
+
+Cerrar Sequence of Activities
+Excellent work so far! All activities are visible in the right numbers in Celonis, but what 
+about the sequence in which they appear?
+
+
+In the Data Explorer
+
+With the Data Explorer you can check individual cases in detail. To do, select your Activity 
+Table and filter for a specific case:
+
+
+
+
+In an Analysis
+
+With the Process Explorer, you can have an aggregate overview of the activity sequences. 
+Here you would start by looking at the most common variant and add new activities and 
+connections continuously. Always ask yourself if what you see is accurately portrayed.
+
+
+
+When looking for a specific process sequence you can utilize the ?Process Flow Selection? 
+in the ?Selection UI?. This way you can look for process patterns that should definitely not 
+occur.
+
+
+Initial Activities of Cases
+
+Additionally, it makes sense to check the initial activities of cases. To investigate this, 
+simply click on ?process start? in the process explorer and on ?cases go to?. You can do the 
+same for the process end.
+
+
+If project members agree that the overall process flow is accurate, you need to perform 
+one last check.
+
+Individual Case Examination
+
+The individual case examination is used to compare selected cases in Celonis with the 
+source system entries. To select representative cases, you should select a stratified random 
+sample of cases in Celonis which are checked against the source system. The general steps 
+are:
+
+Define your stratification criteria (e.g. company code, document type, vendor, material 
+group).
+Select random cases after filtering on the selected stratification criteria. You also want to 
+go for some outliers, such as cases with a lot or very little activities, fast cases, long-
+runners, repetitive or open cases
+Verify that all activities shown in your cases match with the source system entries.
+Note down all mismatches and analyze in detail why an activity might have a different 
+timestamp in Celonis or why it is not appearing at all. This way, you can trace the reason 
+back to understand where the mismatch is coming from to be able to adjust the 
+transformations accordingly.
+In the Data Explorer
+
+Simply select your Activity Table and apply the filters you need.
+
+
+
+
+In an Analysis
+Use the Case Explorer to analyze the activities of a case.
+
+
+
+
+Almost there!
+
+
+The process is now representing the processes executed in the IT systems. However, to be 
+sure that you can work reliably with the process model, you need to verify that the net 
+values are also correct.
+
+Net values
+
+If you are working with standard processes, chances are you also need to validate the total 
+net order value. The total net order value is often a central KPI visible to business users in 
+views. The net value is an aggregation of the value of all cases.
+
+
+
+
+
+In the Data Explorer
+
+To check net value, select the Case Table and sum the net value column with or without a 
+filter of your choice.
+
+
+
+
+
+Digging deeper in an Analysis
+
+
+As a Data Engineer, you most likely won't go farther than looking at the total value and 
+getting confirmation that it is correct. In contrast, a Data Analyst working on the use case 
+may dig further and look for errors in currency conversion rates.
+
+Here is a sample Analysis where the amount in the document currency is divided by the 
+converted currency to calculate the conversion rate. An area chart can show the trend over 
+time. The Analyst selects different currencies to validate that all conversions result in 
+accurate values.
+
+
+
+
+Congratulations, your process model is fully validated and you have built the basis for the 
+development of use cases
+
+Documenting Validation
+
+Validation goes beyond looking at your process and applies to other Celonis areas such as 
+Analyses and Action Flows. The importance of documenting validation cannot be 
+understated.
+
+Here is a sample Excel sheet to support you with running validation, tracking them, and 
+assigning clear responsibilities on follow-up actions. Feel free to adjust the sheet to your 
+needs.
+
+For more information on the topic of validation, make sure to check our course Process 
+and Data Validation course.
+
+
+
+Connect Multiple Systems
+
+Parallel vs Sequential Scenarios
+
+When you?re building a Data Model for an end-to-end process, you?ll often have to pull 
+data from multiple systems.
+
+You?ll encounter two main scenarios here:
+
+First, there?s the parallel or horizontal scenario. In this scenario, the same exact process is 
+executed in parallel in different systems. Companies with branches in different countries 
+are a perfect example of this since they often have dedicated source systems per each 
+country they operate in.
+
+
+
+
+Then there is the sequential or vertical scenario. ?Sequential? refers to the fact that 
+different steps of a process are tracked in different source systems. For example, 
+information on ?Activity A? is stored in ?Source system 1? and information on ?Activity D? 
+in ?Source System 3?.
+
+
+
+A mix of both scenarios is possible and common. But for now, let?s look at how to deal 
+with each scenario separately.
+
+Handling the Parallel Scenario
+
+To handle a parallel scenario where three identical systems handle the same process, you 
+need to create a Data Pool, set up three connections, and then one Data Job for each 
+connection.
+
+
+
+
+Use Templates and Parameters
+
+If the extraction is exactly the same for all three systems, you can re-use one extraction 
+template for all three source systems. Keep in mind here, if some parameters differ slightly 
+like currency or timestamps, you can adjust these in the instances of templates.
+
+
+
+The same approach applies for transformations. You can use transformation templates 
+wherever they are the same in the source systems.
+
+
+
+
+Merge with Global Data Jobs
+
+Once you?ve created the extractions and transformations for each of the source systems 
+ideally using only templates, you should now have three activity tables and every raw data 
+table three times.
+
+The next step is to merge these tables. This is where Global Data Jobs come into play.
+
+A Global Data Job can access all the tables in your data pool and isn?t limited to one 
+specific data connection.
+
+Using Global Jobs, you can merge the activity tables and the other tables, to have one 
+central activity table as well as central tables for Case table and master data tables.
+
+Summing up, you create four Data Jobs in this example. Three Jobs comprising the 
+extraction and transformation tasks for each of the source systems and one Global Job 
+with transformations to merge the created tables.
+
+In the end, you?ll have one Data Model that includes the combined tables from the Global 
+Job.
+
+
+
+Handling the Sequential Scenario
+
+Let?s have a look at the sequential scenario. In this example, we have three different 
+source systems with different structures, which run different steps of the process. One 
+system could store the timestamps for the activity ?Create Purchase Order Item? and 
+another system for the activity ?Book Invoice?. In contrast to the parallel scenario, you 
+can?t use the same extraction and transformation templates for each system. So you have 
+to create separate Data Jobs with different extractions and transformations for each 
+system.
+
+
+
+
+Global Job to merge the data
+
+After writing and executing the extractions and transformations for every single 
+connection, you need a global transformation again, to merge the Activity Tables. Note 
+that in the sequential scenario, it doesn?t make sense to merge the raw data tables as they 
+don?t come from the same source system and most likely have different content and 
+structures.
+
+In the end, you set up one Data Model that includes the merged Activity Table from the 
+Global Data Job and the separate raw data tables from the other Data Jobs
+
+Global Data Jobs
+
+Did you notice a common denominator? Yes it's Global Data Jobs. Let?s have a look at how 
+you can work with Global Data Jobs in Data Integration.
+
+You can compare the EMS? data structure to a generic database structure. Data Pools 
+correspond to separate databases and the databases? Connections to schemas. Extracted 
+or transformed tables are stored in the respective schema or connection.
+
+Global Data Jobs have no associated connection and create a separate schema in your 
+Data Pool.
+
+
+
+
+As a Global Job isn?t connected to a source system you can?t create extraction tasks in it, 
+only transformations and Data Model Loads. In these transformations, you can access all 
+data from the different schemas (connections) in your Data Pool. If you create new tables 
+in a Global Job, the tables are stored in the Global Schema.
+
+
+
+Creating a Global Data Job
+
+Now let?s have a look at how connecting multiple systems works in practice with a parallel 
+scenario. Assume you have a second source system with process data from a different 
+country, with the exact same structure as the one already connected.
+
+Your first step is to connect the second source system.
+
+
+
+
+Next you?ll transform your first source system?s existing extractions and transformations 
+into templates and add them to a new Data Job for your second system.
+
+
+
+
+
+Now it?s time to execute the second Data Job so data appears in the system.
+
+
+
+Once done, it?s time to merge the tables from the two systems to create central tables 
+with aggregated data from both systems. As you know, you can do this with a Global Data 
+Job.
+
+Create ?New Data Job?, name it ?Merge P2P data? and go ahead with Global as the 
+connection.
+
+
+
+So, let?s create the transformation that puts the respective tables together.
+
+As a best practice, you should create a transformation for every table you merge.
+
+Let?s start with the Activity Table and create a new transformation task called ?Merge 
+Activity Tables?.
+
+
+
+
+To merge a table, you need to use UNION ALL Statement
+
+Since the structure of the activity tables is exactly the same, you can simply create the 
+central activities table by selecting all entries from both tables and applying a ?UNION ALL? 
+statement.
+
+
+
+? The sample union script
+
+Now let?s execute the transformation to create the central Activity Table!
+
+To complete the Global Data Job, you would create similar transformation tasks for all the 
+additional raw data tables.
+
+When setting up your Data Model in the next step, you need to make sure to only include 
+the central/merged tables from the Global Data Job.
+
+Connect Multiple Processes
+
+Unrelated Processes from One System
+
+Very often, one source system stores information about multiple processes unrelated to 
+one another or where you do not wish to see the correlation between the processes.
+
+For example, there might be a database that contains Purchase-to-Pay data as well as the 
+Accounts Payable data. In this case, you can create one Data Pool containing one Data 
+Connection that connects to the one system. When it comes to the Data Jobs, you?ll create 
+one Job that is linked to this specific connection. In this job, you can extract all the relevant 
+data for both processes. So, the first Data Job exclusively includes extraction tasks.
+
+After that, you create two more data jobs containing exclusively transformations. One to 
+create the activity table and the raw data tables for the Purchase-to-Pay process and one 
+to create the tables for the Accounts Payable process.
+
+
+
+
+This best practice helps you keep your Data Jobs at a reasonable number and maintain a 
+good overview of the different jobs you created.
+
+Once you have your separate tables for each process, you can now create two separate 
+Data Models. In other words, apart from the extraction job, you can keep the rest of your 
+work separate in one Data Pool
+
+Multiple Related Processes
+
+What happens when you'd like to analyze multiple different processes in parallel or would 
+like to apply a filter across multiple processes? In Data Integration, attempting to map 
+everything to a single case key?i.e. from one process perspective?can lead to complex 
+table joins and not give you the desired transparency in downstream Analyses.
+
+To reduce complexity in bringing related processes together or analyzing multiple semi-
+independent processes in parallel, you can actually have multiple Activity and Case Tables 
+in one Data Pool.
+
+
+
+
+
+This is what we call the Multi-Event Log or in other words Multiple Activity Tables. It?s 
+when you will have more than one process in your Data Model.
+
+For example, you could create an Activity table for your Order-to-Cash process and 
+another for your P2P process. Instead of joining everything in one Activity table, you can 
+simply connect the separate Activity tables in your Data Model using the appropriate 
+foreign keys.
+
+In other words, another way beyond Global Data Jobs of bringing your Activity tables 
+together?in this case for different processes?is to use the Data Model Load step.
+
+Multi-Event Log is especially relevant if you are working on different but related processes.
+
+Here is what Multi-Event Log can look like in an Analysis:
+
+
+
+The Use Cases
+
+Here are four use cases for Multi-Event Log:
+
+To put independent processes into context (filter across processes).
+To analyze parallel processes by linking multiple hierarchical Event Logs.
+To reduce transformation script efforts (no joins) by merging Event Logs.
+To visualize end-to-end processes by linking multiple Event Logs.
+
+Merging if necessary
+
+You can load your Activity tables separately or you can merge them. The "Eventlog 
+automerge" toggle in your Data Model is what triggers a merge of your Activity tables.
+
+
+
+Defining Multiple Activity and Case Tables
+
+Let?s have a look at a simple example in Data Integration.
+
+In transformations, the assumption is that we?ve defined multiple Activity Tables and filled 
+them with their relevant activities. To keep it manageable and considering schedules, it's 
+best practice to create separate Data Jobs per process area where possible.
+
+
+
+Exactly how you set up your Data Connections, Data Jobs and Tasks simply depends on 
+your system architecture, where the data resides, and how you can best bring it together. 
+The end result is simply for you to have multiple Activity and Case tables in one Data Pool.
+
+In Process Data Models, we?ve added all relevant tables in one Data Model. Here you can 
+see that multiple Activity and Case Tables were defined and connected to one other with 
+foreign keys. The As and Cs in the image indicate whether a table is an Activity or Case 
+Table:
+
+
+
+By default, the first Activity Table you define is the Default Activity Table. This is the table 
+that will automatically appear first in components when you build Analyses or Views. To 
+set a table as an Activity Table or a Default Activity Table, or define an Activity Table's Case 
+Table, you use the vertical ellipsis (three dots) options on the Activity Table:
+
+
+
+To Merge or not to Merge
+
+Once you?ve defined your Activity and Case tables and linked all tables with their 
+respective foreign keys, you need to consider how to load the Data Model.
+
+For Multi-Event Log, you can choose use the Eventlog automerge function when building 
+your Data Model load.
+
+
+
+What it does
+
+This merge takes all Activity tables and brings them into one according to the case IDs 
+from your Default Activity table, sorting by the respective Timestamps.
+
+Take these three sets of tables for example where Table2 is the Default Activity Table:
+
+
+
+
+
+
+
+Merging them would result in the following Event Log:
+
+
+
+Here the Case IDs were all brought under Table2's Case IDs using the join path. The 
+Activities with their respective Timestamps were merged. Additional columns from each 
+table were added and left with null where no value was available.
+
+When you use the Eventlog automerge, you'll have the merged eventlog table named 
+_CEL_MERGED_ACTIVITIES available after your Data Model is loaded. You can use this 
+table as any other eventlog(Activity) table in your analyses.
+
+Going back to our question, when should you merge? Merging your activity tables makes 
+sense if you want to work with one sequential activity table. If you don't, then keeping 
+separate Activity tables in your Data Model makes more sense.
+
+Merging in PQL
+
+Note that Eventlog automerge is just a shortcut for using the MERGE_EVENTLOG PQL 
+operator in your analyses. You can still merge Activity tables (Eventlogs) on the go using 
+the PQL operator in your analyses if you choose not to do it in Data Integration. Using PQL 
+gives you greater flexibility on the merge as you can choose which columns to keep.
+
+Note that some merges result in duplicate results. In those cases, you should use the 
+?merge event log distinct? option.
+
+
+
+
+
+
+
+If you need a deeper read into how merging works, refer to the Help here for the Data 
+Integration perspective and here for the PQL perspective.
+
+Common Issues with Merging Logs
+
+When loading your Data Model with the Eventlog automerge enabled, here are two 
+common issues you may face:
+
+WARNING: Eventlog automerge enabled, but no default eventlog has been configured. -> 
+This simply means you need to set one of your Activity Tables as the default one. With this 
+warning, no merged Activity Table is created with the Data Model load but you can still 
+work with the Analyses as you would with a normal data load.
+ERROR: Eventlog automerge enabled, but no eventlog can be merged with the default 
+eventlog. -> This means either no other Activity Table can be found and connected your 
+default Activity Table in your Data Model. In other words, there is no proper join path.
+Working with Data Pools
+Data Pool Options
+
+In Data Integration, you'll encounter scenarios where one more Data Pools need to be 
+partially or fully reworked. Let's look at four options that will help you along the way:
+
+Sharing Data Connections
+Versioning Data Pools
+Copying Data Pools
+Copying Data Jobs
+Before jumping into each option, let's do a quick recap on terminology in and around Data 
+Pools.
+
+Data Integration Terminology Recap
+
+Here we need to clarify two additional high-level terms you may already have come 
+across: Cluster and Team:
+
+
+
+Cluster - Also called Realm, this typically reflects a hosting location e.g. eu-1 or us-1. It can 
+also reflect a specific purpose as with our training cluster. You can see the cluster / realm 
+of your Celonis environments in the URL: "https://data-testing.training.celonis.cloud/"
+
+Team - At Celonis, "Team" is synonymous with environment. When completing trainings in 
+the Celonis Academy, you received your own personal training Team which was created on 
+the training cluster.
+
+If you need a review on the terms in the Data Integration Service, make sure review this 
+page.
+
+Sharing a Data Connection
+
+In some cases, you need to re-use some of the same data across Data Pools or restrict 
+access to part of the data in a Data Pool. If the same data should be available across 
+multiple data pools, you can use the data transfer option. With it, you can share a data 
+connection with one or more Data Pools in the same Team.
+
+When sharing, the EMS creates views on the shared Data Connection?s tables. A view is 
+simply a virtual table that references and queries your existing tables. With this approach, 
+no data is replicated across Data Pools. You can share a Data Pool's normal connections as 
+well as its "Global scope"?i.e. the global schema not related to a connection where data 
+from e.g. where File Uploads go by default.
+
+In Data Integration, you'll find the share option by clicking the three dots on a Data 
+Connection:
+
+
+
+You then decide with which Pool to share. In the target Data Pool, you can then set up a 
+new connection and select "Import Data from another Pool
+
+
+
+Note that this feature is not available by default in productive or training EMS Teams. To 
+enable it, please reach out to servicedesk@celonis.com.
+
+More information on this feature here.
+
+Versioning a Data Pool
+
+Data Pool Versioning allows you to:
+
+trace changes in your Data Pools
+revert to previous versions if certain changes cause issues
+separate development and productive environments through the easy copying of Data 
+Pool Versions to other Data Pools
+What is versioned?
+
+Data Pool versions include:
+
+Data Jobs,
+Process Data Models,
+Data Parameters,
+Task Templates,
+and Schedules.
+And they exclude;
+
+Data permissions,
+Data Connection details,
+and actual data
+Where is it and what can I do?
+
+In Data Integration, you can see the versions of a Data Pool in the top right corner under 
+?Versions" (the label icon).
+
+
+
+
+Here you can:
+
+Save a new version
+Load another version as the active one
+Delete a version
+Compare two versions
+and copy a version to another data pool in the same team or a different team. Note that 
+the team needs to be in the same cluster.
+
+
+
+Versioning is not automatic
+
+To create a draft, you need to proactively save a draft, write a short note on the changes 
+and indicate what kind of upgrade it is. The saving menu shows you the differences 
+between your the current and new draft.
+
+
+
+
+
+Copying a Version to another Data Pool
+
+When you copy a version, you will need to:
+
+map existing Connections to make sure the Data Jobs work on appropriate connections.
+match Data Jobs to ensure Data Job alerts are kept in the target Data Pool.
+match your Data Models in the target Data Pool. This is relevant if you are overwriting 
+existing Data Models connected to EMS objects in the target Data Pool.
+decide if the version should be loaded directly or simply added as a version but not 
+loaded.
+Thankfully, the copy wizard takes you through these steps one by one:
+
+
+
+You can copy versions to other teams you have access to on the same cluster.
+
+Copying a Data Pool
+
+In some cases you may just want to duplicate an entire Data Pool to the same Team or 
+another Team. To do so, simply go to your Data Pool and select the "Copy-to" option and 
+select the Team to copy it to.
+
+
+
+
+
+This replicates all of the Data Pools' Connections, Jobs, Tasks, and Data Models. You can 
+copy a Data Pool to any Team you have access to on the same cluster.
+
+Copying a Data Job
+
+In some cases, you may simply want to copy a Data Job from one Pool to another to re-use 
+all of your scripts. For this you can use the "copy to" function at the Data Job level:
+
+
+
+You can copy to any team you have access to on the same cluster. The function copies:
+
+Extractions
+Transformations
+Local parameters
+Templates
+It excludes:
+
+Data Pool parameters
+Data Model Load tasks
+Job alerts
+The tables and data
+If you copy a job including extractions to a Global scope, the extractions are removed as 
+Global Data Jobs cannot contain extractions.
+
+Other Possibilities to Push and Pull Data Assets
+
+If you are not afraid of code and need to perform operations beyond what Data 
+Integration's UI possibilities afford, you can have a look at pycelonis documentation.
+
+Pycelonis is a Python package you can use within the Machine Learning Workbench to 
+interact with Celonis objects such Data Pools, Data Models, Data Jobs so on.
+
+Another tool you can use in the Machine Learning Workbench is the Content-CLI 
+(Command Line Interface) tool. Similar to pycelonis, you can use it to move data and data 
+assets from one Team to another.
+
+In this repository you can find pycelonis and Content CLI sample snippets that address a 
+number of use cases.
+
+Boost your EMS SQL Transformations
+
+Best practices
+Extract only the Necessary Data
+
+An optimized data pipeline extracts and transforms only necessary data. Skipping an 
+optimization of your extractions can have very detrimental effects on your data pipeline. It 
+leads to:
+
+Higher storage needs (affects your license's APC)
+Heavier consequences of bad practices in transformations (e.g. SELECT *)
+Negative performance impact on load times in extractions, transformations, and data 
+model loads
+Here are some ways to trim your extractions down to only the necessary data:
+
+Adjust Process Connectors
+By default, Connectors extract many columns to cater to many process variations. Validate 
+and adapt standard configurations in Connectors and make sure your extract only the 
+necessary tables and columns for your process.
+Trim Large Tables
+Important tables often contain a large number of columns. For SAP, tables such LIPS, VBRP, 
+VBAP, EKPO, BSEG, LIKP, EKKO, VBAK contain between 150-380 columns. In reality, you may 
+only need a small portions of the columns.
+Use Extraction Filters
+Whenever possible, determine what data you can exclude based on time filters, join filters, 
+or additional filters. This way, you can reduce the amount of data directly at extraction.
+
+Those are the basics of optimizing your extractions. In the next lessons, we'll focus on 
+transformations. Let's start with performance estimation.
+
+Query Execution Plan (EXPLAIN)
+
+For each query submitted to Vertica, the Vertica query optimizer assembles a query 
+execution plan?a sequence of steps and required operations to access data and calculate 
+the result.
+
+To have a look at a query execution plan, you can simply insert EXPLAIN before any SELECT, 
+UPDATE, or DELETE statement.
+
+
+
+
+Using the query execution plan (EXPLAIN) is essential to optimize your queries. It helps you 
+identify inefficient parts of the queries and validate the impact improvements you apply. 
+While analyzing the entire query execution plan might appear overwhelming, in the 
+majority of scenarios for Celonis transformations, it's enough for you to focus on:
+
+the estimated query cost,
+the join type,
+and "NO STATISTICS"?the indicator of missing table statistics.
+
+
+For now, let's explore the first two: the estimated query cost and join type. In the following 
+lesson, we'll also look at table statistics.
+
+For a detailed explanation of all elements of the query execution plan beyond the scope of 
+this course, have a look here.
+
+Estimated Query cost
+
+
+What is it?
+
+For each query step?also known as a "Path"?Vertica estimates performance costs.
+
+
+
+This estimation is an approximation. Although the calculated costs usually reflect the 
+query runtime, they do not provide an estimate of the actual runtime.
+
+For example, if the optimizer determines that Plan A costs twice as much as Plan B, it's 
+likely that Plan A will require more time to run. But this does not necessarily indicate that 
+Plan A will run exactly twice as long as Plan B.
+
+
+Checking the Actual Runtime in Logs
+
+If you need more accuracy, you can also check the runtime directly in the Event Collection 
+logs after running a query.
+
+
+
+For more information on how Vertica calculates query costs, have a look here.
+
+Join Types
+
+Vertica uses one of two algorithms when joining two tables: merge join or hash join
+
+
+Merge Join
+
+If both tables are pre-sorted on the join column(s), the Vertica optimizer chooses a merge 
+join, which is faster and uses considerably fewer resources than a hash join.
+
+
+
+
+Hash Join
+
+If tables are NOT sorted on the join column(s), the optimizer chooses a hash join, which 
+consumes more memory than a merge join because Vertica has to build a sorted hash 
+table in memory to facilitate the join. Using the hash join algorithm, Vertica picks one table 
+(i.e. the inner table) to build an in-memory hash table on the join column(s). If that sounds 
+a bit cryptic, here is a simplified graphic to give you an idea of what happens in the 
+backend for hash joins:
+
+
+
+
+So which join type is appropriate?
+
+In general, aim for a merge join whenever possible, especially when joining very large 
+tables.
+
+In reality, transformation queries often contain multiple table joins. So, it's rarely feasible 
+to ensure that all tables are joined as a merge type because it requires tables to be 
+presorted on join columns.
+
+A merge join will always be more efficient and use considerably less memory than a hash 
+join. But it's not necessarily faster. If the data set is very small, a hash join may process 
+faster but this is very rare.
+
+How to sort to get a merge join?
+
+To sort properly you should either:
+
+place key columns at the beginning (e.g., MANDT, VBELN, POSNR) of the CREATE TABLE 
+statement,
+Or add an explicit ORDER BY { key columns } clause at the end of the CREATE TABLE 
+statement.
+
+The sorting ensures a more efficient merge join in later transformations where we use this 
+table.
+
+
+What you need to remember
+
+In short, ensure that joins between the tables with a large number of records (e.g. 
+transactional tables) are of merge type. If you have several large tables, then consider 
+joining the biggest two with merge type. For smaller tables such as master data tables, you 
+can use a hash join type.
+
+Table Statistics Overview
+
+
+What are they?
+
+Table statistics are analytical summaries of tables that assist the query optimizer in making 
+better decisions. Table statistics significantly improve query performance, often reducing 
+the query execution time by over 50%.
+
+
+When to add them?
+
+For tables extracted from source systems using Celonis extractors?i.e., "Raw" tables such 
+as VBAP, VBAK, EKKO, EKPO?table statistics are automatically gathered for each table 
+after the extraction.
+
+For additional tables created during the transformation phase?e.g. the temporary join 
+table TMP_CDHDR_CDPOS, or data model tables you create?it's necessary to create 
+statistics explicitly. In general, we recommend you add statistics to all tables created and 
+used in your transformations.
+
+Also, if you significantly change existing tables with INSERTs, DELETEs, or UPDATES, we 
+advise you refresh statistics.
+
+
+How to create or refresh statistics
+
+You simply need to add this after each CREATE TABLE statement that creates and populates 
+a table or after you significantly change the content of a table:
+
+SELECT ANALYZE_STATISTICS ('TABLE_NAME');
+
+For example:
+
+
+
+The database will then gather table statistics when the transformation or query is 
+executed.
+
+The Impact of Statistics
+
+Identical queries can have significantly different query costs and performance depending 
+on whether statistics exist for the tables involved. Let's see how table statistics affect the 
+query execution plans with an example.
+
+
+Query Costs Without Table Statistics
+
+In this example, we created the temporary join table O2C_VBFA_V without statistics as we 
+can see with the "NO STATISTICS" indicator in query execution plan. Without statistics, the 
+projected query cost is 5K.
+
+
+
+
+Query Costs With Table Statistics
+
+In this second example, we see the query execution plan and the estimated cost for the 
+identical query, after gathering statistics for the table O2C_VBFA_V. The "NO STATISTICS" 
+indicator no longer appears. The cost went from 5K to 137.
+
+
+
+
+Why are table statistics so important?
+
+Among many benefits, table statistics are especially crucial for query execution plans with 
+hash joins. They enable the query optimizer to choose the smaller table to build the hash 
+table (instead of the bigger one). In most scenarios, this prevents an ?inner join did not fit 
+into memory? error and improves performance.
+
+Check if Tables have Statistics
+
+There are two main ways to check for tables with no statistics.
+
+1. Using EXPLAIN
+
+Run the EXPLAIN statement for the query and if there is a ?NO STATISTICS? next to a table 
+name, the given table has no statistics.
+
+
+
+
+
+2. Check the "projections" table
+
+To check all tables in one go, check the projections system table (more information on this 
+Vertica table here):
+
+SELECT anchor_table_name AS TableName 
+FROM projections 
+WHERE has_statistics = FALSE ;
+This query returns a list of all tables with missing statistics across your Data Pools.
+
+
+Keep in mind that in most cases your Activity Tables will not need statistics as they are not 
+used in joins in other transformations. That said, if you are unsure, adding statistics to all 
+tables does no harm.
+
+Add Statistics when needed
+
+As you already learned, for any table you find with no statistics, make sure to add:
+
+SELECT ANALYZE_STATISTICS ('TABLE_NAME');
+
+to the transformation that creates the respective table. The database will then gather 
+table statistics in the background.
+
+Write Readable and Maintainable SQL Code
+
+To write professional SQL code you should follow formatting best practices. With proper 
+formatting, your SQL code is simply easier to read, understand, and update.
+
+If you work as a team in developing and maintaining SQL scripts, following formatting 
+standards will go a long way in preventing errors and saving you time. Here is what we 
+consider good SQL etiquette:
+
+Cerrar SELECT Statements
+SELECT columns, not "stars" ?Avoid SELECT *
+Avoid SELECT DISTINCT (more on this later)
+If there are more than 3 columns after SELECT, separate them by placing each on a 
+separate line.
+
+
+
+Cerrar JOIN Statements
+Use new lines for the operators INNER JOIN, LEFT JOIN, etc.
+JOIN conditions should start with 1=1 to have all important conditions beneath each other
+If there is more than one condition, use a new indented line before the AND or OR 
+conditional operator.
+
+
+
+
+Cerrar One Query per Transformation
+Limit the number of queries in transformations. Ideally, one transformation (e.g. "Create 
+Delivery Documents") should contain only one query or serve only one purpose. Any 
+related auxiliary query or temporary table should be part of a preceding, separate 
+transformation.
+
+Having multiple queries within a single transformation makes it difficult to debug your 
+code, measure the query performance, and identify the query potentially causing issues.
+
+Cerrar Table Naming Conventions
+We suggest naming your tables and views as follows:
+
+Object	Naming Convention	Ejemplo
+Activity Table	_CEL_ProcessShortName_ACTIVITIES	_CEL_O2C_ACTIVITIES
+Temporary/ Auxiliary Table	TMP_ProcessShortName_Table1_Table2
+	TMP_O2C_CDHDR_CDPOS
+Data Model views/tables	ProcessShortName_Table	O2C_VBAP
+Cerrar Capital Letters / Uppercase
+When writing your queries, use uppercase for:
+
+SQL Keywords such as SELECT, FROM, WHERE, etc,
+SQL Functions such as CAST, SUBSTRING, AVG, etc
+SQL Operators such as LIKE, OR, BETWEEN, etc
+Avoid
+
+select id, name from users where name like 'm%';
+
+Try using
+
+SELECT id, name FROM users WHERE name LIKE 'm%';
+
+Cerrar Indentation & New Lines
+We recommend you:
+
+Indent after keywords
+Use a new line for each separate column after a comma
+
+Avoid
+
+SELECT tableA.column1, tableA.column2 ,tableA.column3,tableA.column4,
+tableB.column1,tableB.column10 FROM tableA INNER JOIN tableB
+ON 1=1 and tableA.key_column=tableB.key_colum WHERE tableA.column30 < 10
+
+Try Using
+
+SELECT tableA.column1
+     ,tableA.column2
+     ,tableA.column3
+     ,tableA.column4
+     ,tableB.column1
+     ,tableB.column10
+FROM tableA
+INNER JOIN tableB ON 1=1
+     AND tableA.key_column=tableB.key_column
+WHERE
+    tableA.column30 < 10
+Cerrar Table Aliases
+Here is what we recommend when using table aliases:
+
+When querying multiple tables, use aliases in your select statement.
+Include the AS keyword for creating aliases to make the code more readable.
+Include a table alias for each corresponding column in the select statement. That way, the 
+reader doesn't need to parse which column belongs to which table.
+Here you see table aliases defined under FROM and used in the SELECT statement:
+
+
+
+Cerrar Comments
+If you create a complex or non-standard query, include useful comments to explain 
+different parts of the code. Query comments help everyone (including yourself) who needs 
+to maintain the query.
+
+Try to keep the comments short and concise.
+
+WHERE EXISTS instead of JOIN
+
+
+
+What is the difference?
+
+JOIN	WHERE EXISTS
+Used to combine a table with additional fields from another table.	Used to test for 
+the existence of a related record in a table or subquery.
+
+Why use WHERE EXISTS instead of JOIN?
+
+WHERE EXISTS is in most cases more performant than JOIN. With WHERE EXISTS, as soon 
+as the SQL Engine finds a record where a condition is met, it stops processing additional 
+records.
+
+
+When to use WHERE EXISTS instead of JOIN
+
+In some cases, you only want records that have a corresponding record in another table. 
+So you need to filter on the related records. If you only want to check for the existence of 
+the related records and do not need columns from the second table anywhere else?in 
+SELECT or another JOIN for example?you should use the WHERE EXISTS.
+
+For example, imagine two simple tables?books and authors. You only want to select 
+authors that have written a book but you don?t need any information on the books 
+themselves. In this case you don't need to join the two tables. You simply check for the 
+existence of the records using WHERE EXISTS with a proper condition.
+
+
+
+DISTINCT - Overview
+
+
+What is SELECT DISTINCT for?
+
+
+SELECT DISTINCT returns only distinct (unique) values in the result set. If your query is 
+complex, you might add DISTINCT as a habit to prevent duplicate records. Generally, you 
+should avoid DISTINCT or only use it on rare occasions.
+
+
+Why avoid SELECT DISTINCT?
+
+DISTINCT forces the database to perform very expensive deduplication, which significantly 
+extends the query runtime, memory consumption, and increases the risk of query failures. 
+It might give you the results you need, but the cost is often too high and it's most likely 
+masking issues with the data set or query.
+
+
+Looking for alternatives
+
+Instead of using DISTINCT by default:
+
+Check the data set for duplicates
+Check the table joins to make sure they do not cause duplicates?e.g. incomplete joins or 
+cartesian products.
+Let's take a closer look at these two scenarios in detail.
+
+Check for Duplicates
+
+
+Clarity on the Primary Key
+
+To check for duplicates, it's essential to know the primary key of the table, view, or activity 
+you want to generate. This might be at times difficult, especially for activities, where the 
+key is often based on business logic.
+
+
+How to check for duplicates
+
+First, check if there are duplicates in your table, view, or activities by counting the distinct 
+rows based on the primary key and comparing the total with the normal count of all rows:
+
+
+If the results match, there are no duplicates and you do not need to use DISTINCT.
+
+If the results do not match, you can:
+
+revise the extraction logic to ensure a correct extraction based on the primary key, or
+remove the duplicates from your table.
+Note: Make sure to do a duplicate check on a representative data set. If you work with a 
+small data set, you should anticipate duplicates that could occur as your records grow.
+
+
+Removing duplicates from your table
+
+Investigate why there are duplicates in the raw data. If you can detect a pattern, you might 
+be able to directly write a DELETE statement to clean up these cases.
+
+Otherwise, you can create a table based on the raw table, including a row number to 
+detect entries with the same primary key. In the example below, duplicates in table "BSIK" 
+are marked with a row number greater than 1 based on the primary key of the table.
+
+
+
+? Copy this code
+
+Take a minute to understand the above query. For more information on ROW_NUMBER(), 
+have a look at this Vertica article.
+
+If you only need a subset of the table columns (BSIK in this case) in your deduplicated table 
+(BSIK_CLEAN), select specific columns instead of BSIK.*.
+
+When using the created table (BSIK_CLEAN in the example), make sure to add the WHERE 
+statement to either:
+
+only select items from BSIK_CLEAN with the row number equals 1 (NUM = 1)
+or delete all entries from the table where the row number is greater than 1 (NUM > 1). In 
+the example above, we delete all entries with a NUM above 1 as they are duplicates.
+Check Table Joins
+
+
+Queries with DISTINCT and Multiple Joins
+
+In this example, we want to check whether we need DISTINCT in the query after joining 
+two or more tables. You'll often see multiple joins in transformations that create activities, 
+such as "Create Billing Document". This query has a SELECT DISTINCT along with two joins:
+
+
+
+
+Checking if the DISTINCT is required
+
+Let's slightly change the query to get the record count. We'll put the original query in a 
+subquery and run SELECT COUNT(*) over it, as shown on the screenshot below:
+
+
+
+The given query shows 125.001 records with the DISTINCT command used. Now, let's 
+comment out the DISTINCT clause, run the same query again, and compare the results.
+
+
+
+The query returns an identical number of the records, which means DISTINCT is not 
+required in this case. You can remove it from the query without disturbing the data quality.
+
+
+What if the DISTINCT appears to be required after joining two or more tables?
+
+First of all, check why the DISTINCT seems to be unavoidable. You can then approach it 
+accordingly:
+
+1. The table join is for filtering purposes only
+
+We covered this already?sometimes, you only want rows that have a corresponding 
+record in a different table. If that is so, you only need to filter the query on these related 
+records. If the join is causing duplicates but you only need it for filtering purposes, then 
+you can replace it with WHERE EXISTS:
+
+
+
+
+2. Incomplete or Incorrect JOIN
+
+An incomplete join means that we have an unwanted 1:n or even an m:n relationship 
+between the tables we want to join.
+
+Ideally, you should find out the correct primary key of the table, view, or activity you want 
+to create. Second, you should ensure every table has a 1:1 or 1:n relationship to the 
+primary key. If both the primary key and relationships are correct, you won't have 
+duplicates.
+
+If you cannot use the full primary key or the relationship causes duplicates, you can handle 
+incomplete joins in two different ways:
+
+WHERE EXISTS: You are already familiar with this one.
+SUBQUERY: To avoid duplicates in the resulting table, you can subselect only the columns 
+you need for the join and the ones you want to add to the resulting table. If there are 
+multiple records for each join key, you can use aggregate functions (e.g. MIN, MAX, AVG) 
+on them and group the join columns. This is a bit complex, so here is a video explaining the 
+approach:
+
+
+
+Why an incomplete join?Why an incomplete join?
+
+1:44
+0:00
+
+
+
+
+
+And here is the sample before and after code of the video's example:
+
+
+
+You can read further on this topic in our Help documentation.
+
+Validating Table Joins
+
+Checking your joins is an important part of avoiding DISTINCT. In parallel, you should also 
+validate your joins to maximize their performance and avoid anything that could slow 
+down your queries or cause inaccurate data. Here is what you should validate:
+
+Cerrar Join Keys
+Make sure that tables are properly joined by using the entire key. Otherwise, joins might 
+cause duplication / or cartesian product.
+Do not exclude key columns even if they are identical for all the records (e.g. MANDT/ 
+Client Id).
+If possible, avoid using convert functions in JOIN conditions (e.g. CAST(), RIGHT(), 
+SUBSTRING(), etc. ).
+For SAP tables, you can find key columns on leanx for example. Make sure to always check 
+your source system's documentation for join key information.
+
+Cerrar Table Filters
+Apply a proper filter so that only relevant records are processed.
+Filter tables within JOIN instead of within WHERE.
+
+
+
+Cerrar Necessity of all Tables
+Validate that all tables are joined purposefully.
+
+Join only tables really required and used in the SELECT statement.
+If you remove or comment out any columns in your SELECT or WHERE clauses, make sure 
+to remove the redundant joins.
+If tables are joined for filtering purposes only, use WHERE EXISTS instead of a JOIN.
+
+Temporary Join Tables - Overview
+
+
+Creating Similar Joins Multiple Times
+
+Sometimes you need to create and execute identical joins multiple times across your 
+transformations. For example, process connectors often contain several transformations 
+that create activities related to record changes performed on different documents (e.g. 
+sales orders). Though these are separate transformations, they each require an identical 
+join between the Change document header (CDHDR) and Change line item (CDPOS) tables.
+
+Instead of joining these two tables repeatedly for each transformation, you can use 
+temporary join tables to store and re-use the query results. This not only saves you 
+expensive query processing time but also makes your code easier to read and maintain.
+
+
+How do temporary join tables work?
+
+You first create the temporary join table (e.g. TMP_O2C_CDHDR_CDPOS) in a separate 
+transformation. It should contain the frequently joined tables and the corresponding 
+columns needed for later transformations.
+With the temporary join table, you execute the join only once and temporarily store the 
+query results.
+Next, you simply replace the repeated JOIN statement in your transformations with your 
+temporary join table.
+At the very end of your transformations, you add a cleanup transformation to drop your 
+temporary join table(s). This proactive dropping of temporary join tables is Celonis-
+specific.
+
+
+
+
+Example: Joining the table CDHDR on CDPOS in SAP process connectors
+
+We often join the CDHDR and CDPOS tables in O2C (Order-to-cash), P2P (Purchase-to-pay), 
+AR (Accounts receivable), and AP (Accounts payable) process connectors. You need this 
+join to add activities related to different document changelogs. Let's create a temporary 
+table that covers this join:
+
+
+
+
+Now we can replace all joins of CDHDR and CDPOS in existing transformations with a join 
+to the table TMP_CDHDR_CDPOS, as described above.
+
+Well-Designed Temporary Tables
+
+Creating temporary join tables (e.g. TMP_CDPOS_CDHDR) during the transformation 
+phase helps reduce the need to repeatedly join the same tables in multiple 
+transformations.
+
+When creating a temporary table, bear in mind that the design of a temporary table 
+significantly affects query performance. You create temporary tables to re-use them in 
+several transformations. Consequently, well-designed temporary tables will significantly 
+improve performance, while poorly designed temporary tables will often cause a 
+bottleneck for the entire data pipeline.
+
+Use the following questions to ensure you design your temporary tables properly:
+
+Cerrar Is the temporary table properly sorted?
+If you recall, sorting properly facilitates a merge join. So you should:
+
+Place key columns (e.g., MANDT, VBELN, POSNR) at the beginning of the CREATE TABLE 
+statement,
+Or add an explicit ORDER BY { key columns } clause at the end of the CREATE TABLE 
+statement.
+
+The sorting will ensure a more efficient merge join in later transformations where we use 
+this table.
+
+Cerrar Are all columns and joins required?
+Temporary join tables should only contain necessary joins and columns and nothing more. 
+If you remove or comment out any columns in your SELECT or WHERE clauses, make sure 
+to remove the redundant joins.
+Adding unused columns and joins might negatively affect both the storage and query 
+performance.
+Cerrar Is there any custom or calculated field?
+If your table contains custom or calculated fields, or concatenated columns not essential 
+for joins with other tables, do not place those columns at the beginning of the table. If you 
+do, Vertica might have to perform additional operations (e.g. creating hash tables) while 
+running the queries, which will significantly extend the execution time.
+
+Cerrar Are table statistics collected for this temporary table?
+Each transformation that creates a temporary table should contain the 
+ANALYZE_STATISTICS statement.
+
+Simply add SELECT ANALYZE_STATISTICS('TableName'); after each statement that populates 
+a table with data. The database will then collect statistics after the transformation or query 
+is run.
+
+Example of a Well-designed Temporary Table
+
+Here is a short video to show you some design principles for temporary tables in action. 
+Feel free to pause and rewind if anything is unclear.
+
+Table vs Views
+
+
+A comparison
+
+Deciding when to use a table or a view in transformations may sometimes be a challenge. 
+Here is a comparison of what tables and views do:
+
+Tabla	Stores persisted results of an executed query
+Ver	Stores a query statement executed every time the view is accessed
+
+When to use them
+
+When building your transformation queries in the Celonis EMS, you'll often create 
+temporary join tables and views. So you should know when to use CREATE TABLE and 
+when to use CREATE VIEW as this greatly influences the duration of the transformation 
+executions and the Data Model Load. The right choice highly depends on a table's size and 
+structure, and the query's complexity. Generally, you can follow these rules:
+
+CREATE TABLE	
+If the query contains complex definitions (e.g. multiple joins and conditions)
+If other transformations (e.g. Activity scripts) are accessing the query result
+CREATE VIEW	
+If the query simply selects the records from a single table (e.g. VBAP) and applies simple 
+conditions.
+In general, should be mostly limited to Data Model tables
+If you are still not sure whether our general recommendation suits certain scenarios, you 
+can try both approaches and compare the runtimes.
+
+Load your Data Model with Staging Tables and Views
+
+
+Better performance with staging tables and views
+
+For tables loaded into a Data Model (DM), you'll strike the best balance between required 
+storage and performance for your data pipeline by combining staging tables with views, as 
+shown in the diagram below.
+
+
+
+This approach allows you to achieve better performance without significantly affecting 
+storage. Let's break this down.
+
+
+How to combine staging tables with views
+
+The first step is to create a staging table. A staging table is a type of temporary table that 
+contains only primary keys and calculated or derived columns. The query that creates the 
+staging table should include all the joins and functions required to calculate or reformat 
+the column values.
+
+
+
+The second step is to create a Data Model view (e.g. O2C_VBAP). In this view, you join the 
+?raw data? table (e.g VBAP) with the previously created staging table (e.g. 
+O2C_VBAP_STAGING).
+
+Note that in this view, there is only one join between the raw table (VBAP) and the staging 
+table (O2C_VBAP_STAGING). All other joins, required for calculation of the fields should be 
+part of the previous, STAGING_TABLE statement.
+
+
+
+Finally, in the Data Model configuration, you use the created O2C_VBAP view.
+
+
+When to use this approach
+
+Using a staging table and a view is mostly beneficial for DM tables that require some 
+preparation before being loaded to DM. Most often, process connectors have 
+transformations that prepare and extend the main case and other transactional data 
+tables. If those queries contain joins and several reformatting functions, you should 
+consider using a staging table and a view. That said, this approach brings no significant 
+value for smaller master data tables.
+
+A good rule of thumb is to use this approach for the main case and transactional tables.
+
+A Review on Table Terminology
+
+
+By now, you've probably encountered quite a few table types and terms in and outside of 
+this course. Here is a quick review of the most common table terms Celonis uses.
+
+In this course:
+
+Temporary Join Table	For Transformations: Saves query costs by capturing recurring joins 
+in one table and re-using it across transformations. Deleted after it's no longer used?
+typically at the end of your transformations.
+
+The naming convention is TMP_{process_name}_{joined_table}_{joined_table}_... e.g. 
+TMP_O2C_CDPOS_CDHDR.
+Staging Table	For Data Model loads: A type of temporary table that contains only primary 
+keys and calculated or derived columns. The table is added to a view which in turn is used 
+in the Data Model load. Staging tables save query costs by preventing views from having to 
+calculate or derive custom columns. As opposed to Temporary Join Tables, they are not 
+deleted after creation as they are needed for the Data Model Load.
+
+The naming convention is {process_name}_{table_name}_STAGING.
+Data Model Table	A generic term pointing to tables used in the Data Model load. In 
+most cases, you create these tables in transformations and derive them from raw data 
+tables?removing unnecessary columns and adding others you may need.
+Projections System Table	This table is specific to Vertica. By running a query on it, you 
+can check which of your table have no statistics. This the query used:
+SELECT anchor_table_name AS TableName 
+FROM projections 
+WHERE has_statistics = FALSE ;
+Raw Data Table	The tables you directly extract from source systems.
+Master Data Table	Points to a type of raw data table you extract that contains system 
+master data.
+
+From other courses:
+
+Metadata Table	Points to a type of raw data table you extract that contains extra 
+information. Often used interchangeably with master data table.
+Transactional Table	Points to a type of raw data table you extract that contains 
+information on cases and transactions involved in your process.
+Trigger Table	In Real-Time data extractions, points to an extracted table that triggers a 
+transformation.
+Staging Table	In Real-Time transformations, points to an intermediary table that stores 
+delta information after an extraction.
+
+The naming convention for these tables is 
+_CELONIS_TMP_{trigger_table}_EKPO_TRANSFORM_DATA.
+
+DELETE and UPDATE Can Slow Down Your Pipeline
+
+In Vertica, DELETE and UPDATE queries may not be as performant as INSERT and SELECT 
+queries. Especially on large tables with changes to many records (upwards of 25%):
+
+They can take a long time to complete.
+They may negatively affect the performance of later queries on a table.
+Let's look at the reasons for these two points.
+
+Why can DELETE and UPDATE queries take long to complete?
+
+
+Reasons for the queries to run slowly can be manifold. Some of the factors include but are 
+not limited to:
+
+The size of your table
+The size of your deletion chunk
+The deletion keys and their positioning in the table
+The deletion filters (WHERE)
+The data distribution (boolean vs many distinct values)
+Why can DELETE and UPDATE queries negatively affect later queries?
+
+First you should understand what DELETEs and UPDATEs do in Vertica:
+
+DELETEs do not actually delete data immediately from disk storage but instead simply 
+marks rows as deleted.
+UPDATEs writes two rows: one with new data and one marked as deleted.
+So when you run a SELECT statement on a table following large UPDATEs or DELETEs, 
+Vertica needs to do extra processing to omit the "marked as deleted" records from results. 
+This slows down performance.
+
+Additionally, running DELETE or UPDATE statements puts exclusive locks on tables and 
+prevents other queries from running at the same time.
+
+What happens to rows marked for deletion?
+
+These rows are meant to be eventually "purged" out of the Vertica database. The purging 
+mechanism consumes a lot of resources and its frequency and conditions are handled by 
+EMS maintenance jobs based on Vertica's recommendations. If you would like to read 
+more on this topic directly from Vertica, have a look at this page on purging and this page 
+on DELETEs and UPDATEs.
+
+What is the moral of the story?
+
+If you notice your DELETE and UPDATE statements slow down your data pipeline, then 
+consider applying alternative approaches to work around them. More on the next page!
+
+Avoiding DELETE and UPDATE
+
+Considerations
+
+Before setting up a regular DELETE or UPDATE transformation in your data pipeline, 
+reconsider the need and reason for regular massive deletes or updates:
+
+Using extractions - Can adjustments to the extraction filters reduce the need for 
+deletes/updates?
+Find and fix the cause of duplicates - In case you are using DELETE for deduplication, find 
+which operations creates duplicate records
+Is there any transformation leading to irrelevant or incomplete records that have to be 
+deleted or updated afterwards?
+For example, in a cleanup step, Activity records where the columns "activity name" or 
+"event times" are NULL are often being deleted. Reviewing the transformation creating 
+those activities, you could detect and correct the reason why those records are created 
+with null values.
+
+
+Rebuild Tables instead of DELETE and UPDATE
+
+
+If none of the above helps and you do need to optimize performance, then we 
+recommend you rebuild your tables instead of using DELETE or UPDATE statements.
+
+Below are the steps for either a DELETE or UPDATE scenario.
+
+Rebuild instead of DELETE
+
+You have Table_A that contains 100M records, and you want to DELETE 30M records. 
+Instead of running a DELETE statement, you create NEW_Table_A that contains the 70M 
+records you want to keep. Then rename Table_A to BACKUP_Table_A and rename 
+NEW_Table_A to the original name Table_A. Here are the steps with sample queries.
+
+Create new table selecting relevant records from the existing table:
+
+CREATE TABLE NEW_Table_A AS (SELECT ... FROM Table_A WHERE ... );
+Backup the old table by renaming it:
+
+ALTER TABLE Table_A RENAME TO BACKUP_Table_A;
+Rename the new table to the original table name:
+
+ALTER TABLE New_Table_A RENAME TO Table_A;
+DROP the old table:
+
+DROP TABLE BACKUP_Table_A;
+Add Table statistics
+
+ANALYZE_STATISTICS (?Table_A?);
+Rebuild instead of UPDATE
+
+You have Table_A with 50 columns and 30M records. You would like to update the majority 
+of or all 50M records and set the value of Table_A.Column50 to values from another table 
+(e.g. Table_B). Joining tables and running an UPDATE statement often takes a very long 
+time to execute. This would be a non-performant option:
+
+UPDATE Table_A
+SET Table_A.Column50 = Table_B.ColumnX
+WHERE Table_A.key=Table_B.key
+A quicker way to achieve the same results is to re-build the table, as shown in the DELETE 
+example. For UPDATE, the steps are:
+
+CREATE the new table NEW_Table_A as select of relevant records, in this case, all the 
+records, with 49 identical fields, and with one field that changes the value:
+
+CREATE TABLE NEW_Table_A 
+AS
+SELECT Table_A.Column1
+           ,Table_A.Column2
+           ,Table_A.Column3
+           ,Table_A.Column4
+           ,Table_A.Column5
+           ,Table_A.Column6
+           ,Table_A.Column7
+        ??.
+           ,Table_B.ColumnX as Column50
+
+FROM Table_A
+        Inner join Table_B 
+        ON Table_A.key=Table_B.key;
+Rename the old table:
+
+ALTER TABLE Table_A RENAME TO BACKUP_Table_A;
+Rename the new table to the original table name:
+
+ALTER TABLE New_Table_A RENAME TO Table_A;
+DROP the old table:
+
+DROP TABLE BACKUP_Table_A;
+Add table statistics:
+
+ANALYZE_STATISTICS (?Table_A?);
+
+For Inevitable DELETEs and UPDATEs
+
+We believe you can avoid the majority of DELETE and UPDATE statements by simply finding 
+and fixing the source of your duplicates and/or rebuilding tables.
+
+If you absolutely need to use DELETE or UPDATE, then consider the following best practice:
+
+Execute the query in smaller parts/chunks. This will lead to shorter execution times for the 
+DETELE and UPDATE statements. For example, if you want to delete entries from a table, 
+e.g. BSEG, instead of a large delete you could delete by year:
+Delete from BSEG where GJAHR=2020;
+Delete from BSEG where GJAHR=2021;
+Delete from BSEG where GJAHR=2022;
+Select the right conditions - When limiting the query through a condition, select a field 
+that appears at the beginning of the table field list (i.e. Vertica typically sorts tables using 
+initial fields) and whose values are close to evenly distributed across the data set. Such 
+fields may be date and document type.
+That is it for this lesson. Now let's move on to the final course recap!
+
+You've almost reached the end! It's time to review a little bit.
+
+In this course, you learned about best practices for writing performant and maintainable 
+SQL code in Celonis transformations.
+
+Take a minute to over the most important points you learned from each lesson. After that, 
+it's time for a final knowledge check!
+
+Cerrar Query Performance Estimation
+Put EXPLAIN before any SELECT or UPDATE statement to display the query execution plan.
+
+In the query plan, concentrate on:
+
+Steps with high estimated query cost
+The Join Type - Aim for merge join when joining large tables. Hash is ok for smaller tables 
+or when merge is not possible.
+The Missing table statistics indicator (NO STATISTICS)
+Cerrar Table Statistics
+Table statistics are one of the most important factors for performant queries.
+
+Table statistics are collected automatically only for the tables extracted using a Celonis 
+Extractor (e.g. "raw source system tables"). You have to create statistics explicitly for every 
+custom or temporary join table in your transformations (e.g. TMP_CDHDR_CDPOS).
+
+Simply add SELECT ANALYZE_STATISTICS ('TABLE_NAME'); after each "Create table" query 
+statement that populates a table (not for empty tables). The system will gather data once 
+the query or transformation is run.
+
+Cerrar General Best Practices
+1. Best practices for writing professional SQL code require good formatting skills. This helps 
+you write readable and maintainable SQL code.
+
+2. Avoid INNER JOIN for the purpose of solely filtering the data set. Use WHERE EXISTS 
+instead.
+
+3. Avoid using DISTINCT by default as it's computationally expensive and slows down 
+queries. Check your data set for duplicates and validate that joins are not causing 
+duplicates. Act according to your findings with deletions, WHERE EXISTS, or subqueries.
+
+4. Validate table joins:
+
+Tables should be joined using the entire key (don't forget MANDT / ClientId).
+Filter tables to process only relevant records. Place filters in JOINs instead of WHERE.
+Join only tables that are really required and used in your SELECT statement.
+Cerrar Temporary Join Tables
+Create a temporary join table to reduce the need to repeatedly join the same tables all 
+over again for each transformation.
+
+Bear in mind that the design of a temporary table significantly affects query performance.
+
+Place the key columns (e.g. MANDT, VBELN, POSNR) at the beginning of the table OR use 
+the explicit ORDER BY in a CREATE TABLE statement
+Store only data that you will really need in later transformations.
+Don't forget to add SELECT ANALYZE_STATISTICS('TableName'); after each statement that 
+creates a temporary join table.
+Cerrar Usage of Tables and Views
+Wrongly using views instead of temporary tables might significantly decrease query 
+performance.
+
+CREATE TABLE	
+If the query contains complex definitions (e.g. multiple joins and conditions)
+If other transformations (e.g. Activity scripts) are accessing the query result
+CREATE VIEW	
+If the query simply selects the records from a single table (e.g. VBAP) and applies simple 
+conditions
+In general, should be mostly limited to Data Model tables.
+
+
+Cerrar DELETE and UPDATE Statements
+If you notice slow performance, consider avoiding the use of DELETE and UPDATE 
+statements to clean up your data. You can do so by:
+
+Avoiding extra records by filtering in your extractions
+Finding and fixing the source of duplicates in your transformations
+Rebuilding your tables instead of using DELETE and UPDATE statements
+
+CONNECT CUSTOM PROCESSES
+
+Steps to connect a custom process
+
+There is a certain sequence of steps that we follow when connecting a custom process. On 
+a high level, we recommend the following steps for a successful process connection:
+
+Define the project scope
+Identify data requirements
+Establish data connection to source systems
+Extract, transform and load data
+In this course, we will walk through an exemplary project for the Order-to-Cash process 
+together. Now, have a look at the core project steps of connecting a custom process!
+
+Cerrar 1. Define the project scope
+Here we define the overall project goals and scope. It is important to outline:
+
+1. Strategic objectives: Define the direction and focus of your project to set the right 
+priorities.
+
+In this project, we have three strategic objectives:
+
+Improve sales productivity
+Accelerate delivery fulfillment & quality
+Optimizar el capital circulante (Working capital)
+2. The Process: Select a suitable business process.
+
+In this project, we will look at the Order-to-Cash process because:
+
+it has high strategic value due to an ongoing high-priority management initiative to 
+optimize the end-to-end process.
+it has high optimization potential as there are many known challenges and pain points 
+such as an exceptionally low on-time delivery rate.
+The majority of this process is captured in IT systems.
+3. IT Systems: Identify which systems necessary to capture the process end-to-end .
+
+In this project, we will look at ?PerfectOrder? for the overall order management and a 
+homegrown solution called ?PayWisely? for payment management.
+4. The Timeframe: In order to build a meaningful analysis, we recommend you select a 
+timeframe that captures at least 200-300k cases.
+
+In this project, we will look at the process from January 2019 - December 2019 - this 
+timeframe captures about 348k cases.
+5. Other attributes: There might be other attributes that further narrow down your project 
+scope such as business units or countries.
+
+In this project, we will look at regions ?North America? and ?LATAM? to align our project 
+scope with the scope of the management initiative.
+Cerrar 2. Identify data requirements
+By following a few simple steps, you can quickly identify the relevant data to capture the 
+end-to-end process and the master data that surrounds it.
+
+On a high level, we consider the following points when defining data requirements:
+
+Activity Data: As the main ingredient for process mining, we use the activity data and 
+generate an event log to track the end-to-end lifecycle of a case.
+Dimensions: In order to view the process and metrics for specific attributes such as for 
+vendors or product categories, we use dimensions.
+Key Metrics: Aligning on the most critical metrics before data extraction allows us to 
+capture all relevant data points.
+Translation & Name Mappings: To avoid facing technical codes from certain systems, make 
+sure to use translation tables if any are available. 
+Once you have outlined all these pieces, we bring them together and build a list of table 
+requirements to get started with our process mining journey! 
+
+Cerrar 3. Establish data connection to source systems
+At this point, we know exactly what data we need, so now it is time to establish a 
+connection to get it on Celonis Execution Management System!
+
+In "Connect to Systems", you learned the fundamentals of connecting to on-premise and 
+cloud systems. Depending on the source system, you will set up the data connection 
+accordingly to get the data into your dedicated Celonis EMS team.
+
+Cerrar 4. Extract, transform and load data
+Remember from the courses in the Get Data into the EMS track: As soon as our data 
+connection is established, we then:
+
+Configure the relevant tables, columns and filters in Data Integration to extract the data 
+according to our predefined data requirements
+Transform this data into an Activity table and add extra tables
+Build a Data Model to load the data
+?Step 2: Identify Data Requirements? is the focus of this course.
+
+Here is a template we use to outline data requirements. Throughout this course, we'll look 
+at how to fill it out piece by piece.
+
+This single document will not only help you to define data requirements but will also be a 
+great roadmap when you are building your transformations in Data Integration. 
+
+Selecting a Case ID / Unique Identifier
+
+
+What is the Purpose of a  Unique Identifier / Case ID?
+
+A unique identifier makes it possible to distinguish between different cases and correctly 
+assign the activities and timestamps. In the Event Log, we call such a unique identifier a 
+?Case ID.?
+
+The Case ID is essentially a reference number to document all activities and timestamps 
+that are directly related to each case. Therefore, it must be unique in our case table.
+
+It's important to note that the Case ID might be one single field or a combination of 
+several fields in your data set.
+
+
+The Case ID of our project
+
+We will be following the Sales Order Item throughout the process because it represents 
+the finest granularity of objects with individual process flow.
+
+In a PerfectOrder system, the case ID will be the combination of ...
+
+Sales_Order_ID
+Item_No
+... in the Sales_Order_Item table, which stores all the information on the sales order item 
+level for this process.
+
+Depending on the process that you want to analyze, a Case ID can also be a service ticket 
+number, an invoice number or any further kind of identifiers.
+
+
+But, how did we choose our unique identifier?
+
+The choice of ID has implications for:
+
+The granularity of the process diagram and analyses
+Process visualization in Celonis
+Use cases and questions that may be addressed
+The choice of the unique ID is often intuitive. In any case, it makes sense to keep the 
+following points in mind:
+
+Cerrar Select the unique identifier with a finer granularity.
+In general, this results in a more homogenous process representation and still allows for 
+aggregation to higher levels easily.
+
+In our project, instead of making the Sales Order the unique identifier, building the process 
+for Sales Order Item will allow us to visualize item level activities such as price or quantity 
+changes.
+
+zuIWrY7ZUv155cbk-george-prentzas-SRFG7iwktDk-unsplash.jpg
+
+Cerrar Ensure clear 1:1 mappings between IDs
+This applies especially when there are multiple systems. 
+
+It is vital to have precise 1:1 mappings between unique identifiers in respective systems to 
+create an accurate process visualization.
+
+In our project, sales orders are created and managed in ?PerfectOrder?, and payments are 
+received and tracked in our homegrown system ?PayWisely?. Hence, we need to link these 
+activities for each sales order (item) with 1:1 mapping.
+
+vyaLqoUMtbdBechE-markus-winkler-afW1hht0NSs-unsplash.jpg
+
+Cerrar Keep your project scope and strategic goals in mind.
+It's important to choose a unique identifier based on strategic goals and objectives. This 
+helps you to capture all relevant activities and information to generate value around 
+specific use cases and challenges you aligned previously.
+
+In our project, the supply chain team wants to analyze the lifecycle of a sales order and 
+understand the downstream cash collection, then we should use the sales order item as 
+the case ID and add activities from invoices that are linked to these sales orders.
+
+If the finance team wanted to look at the lifecycle of an invoice and see how the upstream 
+order management activities affect the invoice processing, then we would have used the 
+invoice number as the unique identifier and add activities from sales orders that are 
+associated with invoices.
+
+uhLdMPlvtaGHc9s_-creativity-819371_1920.jpg
+
+Dealing with Multiple Systems
+
+If you went through the course "Multiple Systems and Processes", you can skip this lesson 
+as it is only a review for you. 
+
+In today?s enterprises, end-to-end business processes are supported by dozens of IT 
+systems. Often, this separation is a result of an organizational detachment. Eventually, 
+these silos block cross-department communication, collaboration, and most importantly 
+seamless process execution.
+
+In Celonis, we easily combine data from multiple source systems into one cohesive data 
+model by using our unique identifier and trace the entire lifecycle of each case - no matter 
+if it is a standard ERP, homegrown, legacy or custom system.
+
+We often see that a single process can be parallelly executed in multiple systems or 
+sequentially executed in multiple systems.
+
+
+
+Parallel Systems
+
+Here, the purchase order is created in system A or system B depending on the region.
+
+Within Data Integration, we transform the data from multiple systems and create one 
+single event log.
+
+
+
+
+
+Sequential Systems
+
+Here, the opportunity is created in system A whereas the application is created in system 
+B.
+
+Same as for parallel execution, we extract all the relevant data and create one single event 
+log within Data Integration to build an end-to-end process visualization.
+
+
+Before we outline our data requirements, we should understand the system landscape. 
+Next let's look at selecting the right systems. 
+
+Selecting Systems for Your Project
+
+Why selecting systems? In some processes, there will be dozens of systems and 
+applications. Although it is technically feasible to bring all these systems together in 
+Celonis, we should understand which systems are needed for process mining and 
+execution management. This helps us to maximize our benefits for the effort we need to 
+spend.
+
+Especially in short-term assessment or proof-of-value projects, it's essential to pick 1-2 
+systems, where we can capture the majority of a process instead of connecting all the 
+systems to minimize the technical effort and keep our focus on the strategic assessment 
+itself.
+
+There are a few key questions that help you when selecting systems to connect your 
+process: 
+
+In which systems is process executed?
+Are there any third-party systems?
+Which systems are absolutely relevant?
+What is the value of connecting an additional one?
+In our project, eventually there were three systems:
+
+Cerrar PerfectOrder
+In PerfectOrder, the overall order management process from creating sales order items to 
+shipping goods is managed.
+
+We can capture all relevant timestamps in this system including exceptions and relevant 
+master data.
+
+Cerrar PayWisely
+In PayWisely, all payment related activities from sending out the invoice to receiving 
+payments are executed.
+
+Exactly as in PerfectOrder, we easily capture all relevant timestamps including exceptions 
+and master data in PayWisely?s raw system tables.
+
+Cerrar BillNow
+In BillNow, payments are managed for a few specific customers.
+
+Eventually, all relevant timestamps are recorded in PayWisely as well. Hence, connecting 
+BillNow tables would bring no additional value for the moment.
+
+Choose PerfectOrder and PayWisely
+
+
+That is why we decided to exclude BillNow from our initial scope and only connect 
+PerfectOrder and PayWisely.
+
+It is important to remember: Celonis enables us to easily connect and extract data from 
+multiple sources, so if we see a need to connect to the BillNow system in the future, we 
+can easily do so.
+
+Introduction to Data Requirements
+
+Ready for a quick recap? Until this point, we learned how to define a process, identify a 
+unique identifier, and select relevant systems for our project. Now is the perfect time to 
+map our data requirements to visualize this process.
+
+As you learned earlier, there are four important points to consider when defining data 
+requirements.
+
+Activity Data - Used as the main ingredient for process mining to generate an event log.
+Dimensions - Show the process/metrics for specific attributes such as vendors and product 
+categories.
+Key Metrics - Allow us to align on the most important calculations prior to data extraction.
+Translation & Name Mappings - Convert certain technical terms into meaningful text fields.
+After outlining these pieces of information, we create a list of final table requirements and 
+define table relationships - often your system expert already has a visualization of "table 
+relationships" available. 
+
+In the next chapters, we'll deep dive into each point and learn how to identify 
+requirements in detail.
+
+Exploring your Data with the Data Explorer
+
+One challenge when dealing with a new system or process is exploring the data at hand 
+rapidly. Instead of using database sql queries, you can consider using Celonis' Data 
+Explorer. To explore you data with the Data Explorer, you simply need to: 
+
+extract all potentially relevant tables
+load all extracted tables into a Data Model
+connect your Data Model to a Knowledge Model in the Studio
+create an instance of the Data Explorer 
+start exploring
+
+
+
+
+For more information on the Data Explorer, make sure to check out our microcourse and 
+the respective documentation. 
+
+Activity Data
+
+The event log is the main ingredient for a process mining project, so we will start by 
+identifying data points for your event log. Case ID, Activity Name and Event Time form the 
+minimum requirement for an event log. Additionally, we can always have other fields that 
+are relevant for our activities such as user name or user type.
+
+Where do we capture timestamps?
+
+Timestamps are typically stored in three different types of tables:
+
+
+
+
+
+
+
+Outlining Activities
+
+Now that we know where to look, it's time to outline all relevant activities! The template 
+you downloaded earlier (here if you missed it) already contains some sample activities in 
+the "(2) Activities" sheet. 
+
+For each activity, it is important to answer a set of questions. Let?s do it together for 
+?Create Sales Order Item? activity in PerfectOrder:
+
+Cerrar What is the activity name?
+What is the activity name that you would like to see in Process Explorer? This should be as 
+easy and descriptive as possible so that everyone in the organization from technical teams 
+to business teams understands the process representation.
+
+~~~
+
+For the order creation activity, we decided to go for ?Create Sales Order Item?. It is easy to 
+understand, descriptive, and short. Just perfect!
+
+Cerrar What is the level of this activity?
+In a previous chapter, we talked about the level of granularity when defining our unique 
+identifier. Eventually, when capturing the process, there will be activities on different 
+levels. For instance, a sales order is created on the order level whereas price changes are 
+done on an item level. That is why we should state the activity level in this question.
+
+~~~
+
+For this activity, the level is Sales Order.
+
+Cerrar Which table stores the timestamp for this activity?
+Which table do we need in order to capture the timestamp for this activity?
+
+~~~
+
+We can capture this activity in our Sales_Order table easily. Please see the table below 
+once again.
+
+Inrn9RXdGzQZqoZ1-table5.png
+
+Cerrar Which field in this table is the timestamp?
+Where in this table can we track the timestamp logged for this activity?
+
+You should capture the timestamp as granularly as possible. In some cases, you might have 
+a separate date and time fields which you can merged in Celonis. If there is no exact time 
+value for specific activities, don?t worry! The date is also sufficient for our analysis.
+
+~~~
+
+As you see below, there are Creation_Date and Creation_Time columns that log the order 
+creation activity. We can easily merge them to create a great timestamp!
+
+f5aE7C3GneLNYEqK-table6.png
+
+Cerrar What is the relationship to the global case table (if any)?
+How should the table used for this activity link back to our case table? No need to fill this 
+out if the table is already at the Sales Order Item level.
+
+~~~
+
+Our global case table is the Sales Order Item Table. Let?s see how this works in our case. In 
+the Sales Order and Sales Order Item Tables below, we see that the unique key of Sales 
+Order Table also exists in our Sales Order Item table, so we can join these two tables by 
+using the following relation statement:
+
+Sales_Order.Sales_Order_ID = Sales_Order_Item.Sales_Order_ID
+
+L4dae1u-1CU_uSdN-sales%2520order%2520item%2520tables.png
+
+Cerrar Which field represents the unique identifier?
+How do we get to the unique identifier that defines our case? Remember we always need 
+to have 1:1 clear unique ID mapping to build a coherent digital twin of our process. Even 
+when this single table doesn?t store the fields required for your unique ID, you can join it 
+with your global case table and ensure that your unique ID is mapped correctly.
+
+~~~
+
+Our unique ID is the combination of the Sales_Order_ID and Item_No.
+
+Cerrar Is there any condition for this activity?
+What values should be filtered for certain fields to define this activity?
+
+~~~
+
+We would like to look at activities where ?Order_Type? is not dummy.
+
+As mentioned earlier, this the template is an excellent map for you when building 
+transformations later.
+
+Take a look at the example below to see how this information will help you to create this 
+activity in Data Integration!
+
+
+
+(1) We combined Sales_Order_ID and Item_No to create a unique key.
+(2) This is the activity name you'll see in the Celonis Process Explorer
+(3) We combined date and time fields for this activity to create a timestamp.
+(4) We joined our Sales_Order_Header table and Sales_Order_Item tables. 
+(5) And finally, we stated that we would like to look at only those where the order is not 
+dummy. 
+Enhorabuena.
+
+
+Here is your ?Create Sales Order Item? activity in the event log:
+
+CASE ID	ACTIVITY	TIMESTAMP
+00101	Create Sales Order Item	05/14/2020 16:38:11
+00102	Create Sales Order Item	05/14/2020 16:45:35
+00201	Create Sales Order Item	05/15/2020 09:21:32
+...	...	...
+...	...	...
+Let's identify dimensions now!
+
+Dimensions
+
+Once we start exploring our process there are many questions that cannot be easily 
+answered with only activity data.
+
+For instance, imagine you see that more than 10% of all shipped goods are being sent back 
+by your customers in process explorer. What are the first questions that come to your 
+mind? 
+
+Who are these customers?
+What are the products that they send back?
+Which plants produce these faulty products?
+Are there products or plants that stand out? Should we take a closer look at these?
+Are there plants that perform much better than the rest? What do they do differently?
+You will immediately want to drill down and understand the reason behind this huge issue 
+in your process. This is exactly why we need dimensions.
+
+
+Define dimensions
+
+When defining dimensions, it is important to ask: 
+
+What dimensions do our main stakeholders care about?
+When there is a poor performing metric or a process inefficiency, what dimensions do we 
+want to look at to find out about the reason behind?
+Here are some examples of dimensions we may want to include in our Order-to-Cash 
+project:
+
+Customer Master
+Plant Master
+Product Categories
+Product Lines
+
+Want to know more about dimensions?
+
+For more information, see how we filled out an example in the template under the "(3) 
+Dimensions" tab. 
+
+Key Metrics
+
+With our Project, we'd like to
+
+Improve sales productivity
+Accelerate delivery fulfillment & quality
+Optimizar el capital circulante (Working capital)
+To monitor our progress in each initiative, we have identified several Order-to-Cash key 
+metrics with our stakeholders.
+
+IMPROVE SALES PRODUCTIVITY	ACCELERATE DELIVERY FULFILLMENT & QUALITY
+	OPTIMICE EL CAPITAL DE TRABAJO
+First-Time-Right
+Cost Per Sales Order
+Automation Rate	In-Full Delivery Rate
+On-Time Delivery Rate	Days Sales Outstanding
+
+Even for the most common metrics such as the Automation Rate or Days Sales 
+Outstanding (DSO)?the ways of calculating might differ from customer to customer. In 
+order to eliminate any rework loops and capture all the relevant data, it's important to 
+align on the definitions of these metrics with the project team at the very beginning.
+
+For each initiative's metric, it's important to understand the following:
+
+KPI - What is the metric we would like to monitor? 
+Formula - How would we want to calculate this metric? 
+Data - Which tables and which fields contain these data points within the formula? 
+Do you want to know more about Key Metrics?
+
+Find out more on the "(4) KPI-Metrics" sheet in our template.
+
+Translations & Name Mappings
+
+In many systems such as SAP, there are translation and name mapping tables that help us 
+translate certain code fields into meaningful text.
+
+These translation tables serve as a lookup table, which is simply used to look for a related 
+value from some other table. Common translations are reason codes, customer IDs, 
+company codes, and document types.
+
+It's vital to understand if such tables exist in your data set because they will allow us to 
+build analysis, processes, and dimensions that are easy to understand for our users.
+
+See for yourself! Which one is better?
+
+
+
+
+
+Do you see why it is very important to check if such tables exist? Include them in our table 
+requirements!
+
+Define table requirements
+
+Until this point, we identified our activity data, selected relevant dimensions, aligned on 
+our key metrics, and finally checked if there are any translation tables. Now, we will put all 
+these pieces together and define our table requirements.
+
+
+
+For this, we'll fill out the sheet "(5) List of Table Requirements" in our template. It's 
+important to remember that this document will serve as a great guide once we have the 
+data connection to actually connect our process. 
+
+Do you have the template ready?
+
+1
+
+
+First, define the final list of table requirements.
+
+Throughout this chapter, we learned how to outline different pieces of a process such as 
+activities and dimensions for the order-to-cash process executed in ?PerfectOrder? and 
+?PayWisely? systems.
+
+In order to create the final list of table requirements, we'll list down all the tables that are 
+needed for these different pieces:
+
+Activities (e.g. Sales_Order, Invoice_Status_Log)
+Dimensions (e.g. Plant_Master, Customer_Master)
+Key Metrics (e.g. Sales_Order, Sales_Order_Item)
+Translations & Name Mappings (e.g. Company_Codes)
+2
+
+
+Second, determine primary keys and understand table relationships.
+
+Remember that in Celonis we use relational data models and in relational data models, it's 
+important to have a unique identifier for each table to ensure that there is no ambiguity 
+when retrieving data.
+
+That is why it's always a good idea to get an understanding of the primary keys for each 
+table already at this stage. The primary key can be a single column or a combination of 
+several columns.
+
+For instance: In the Customer_Master table, the Customer_ID is the primary key whereas, 
+in the Sales_Order_Item table, the primary key is a combination of Sales_Order_ID and 
+Item_No.
+
+The following two criteria are important when defining a primary key:
+
+It uniquely identifies each row: The values of a primary key must always be unique within 
+your table. For instance, we prefer to use Customer_ID over Customer_Name as a primary 
+key for Customer_Master table, because ID is unique whereas the name might be 
+duplicate in some cases.
+
+And it is never null: For a robust data model in Celonis, the primary key must always have a 
+value. In most cases, you will not see null values in primary keys as it should be maintained 
+correctly at the source system level. However, if you see many null values for any reason, 
+you can always consult your system expert.
+
+Understanding primary and foreign keys also will help you when building your Data Model 
+later in Celonis. Make sure to ask your system expert if there is already an existing Data 
+Model map that can guide you in your process mining mission!
+
+
+
+
+
+
+3
+
+
+
+Finally, outline further details such as filters and joins for each table.
+
+Data Integration allows us to configure and manage data requirements at a very granular 
+level. We can easily add or remove tables, define filters and joins, restrict our column 
+scope, and pseudonymize any field. That is why we should gather the following details for 
+each table:
+
+Filters - Are there any filters that should limit the data extraction according to our project 
+scope? (e.g. dates, company codes)
+
+Columns - Should we extract the full table as-is or restrict the columns? This is especially 
+important for giant tables such as the Sales_Order_Item table.
+
+Columns to pseudonymize - Are there any sensitive fields such as user names and 
+customer names that should be pseudonymized?
+
+Joins - Should we join any tables? What are join conditions and filters?
+
+
+
+
+Congratulations!
+
+You have everything you need to extract the relevant data and start your execution 
+management project!
+
+Quality Assuring your Data Pipeline
+A Practical Checklist
+
+This is a practical take-away checklist you can use to run a quality assurance check on your 
+Data Pipeline before it goes live. The checklist is based on project best practices and 
+currently used in implementations.  
+
+If you've gone through the "Get Data into the EMS" track, you should be familiar with most 
+these points. For non-self-explanatory points, we also provide a short explanation. 
+
+Here is the checklist?have a quick read and make sure to download the list in course 
+resources afterwards: 
+
+
+
+AREA	CHECK	EXPLANATION
+Connection de datos	Connections in place working - No errors/warnings?	
+Extractions	Should we be using Replication Cockpit?	This is a consideration if the 
+existing pipeline is too slow or needs to work for an operational / high speed use case
+Full Extractions Loads run less than 12 hours?	12 hours is a benchmark that typically 
+should not be crossed for extractions. The points below can help reduce this time limit.
+Replication Cockpit not used during extractions?	If you use both Data Jobs and the 
+Replication Cockpit, make sure they do not run at the same time. You can use the 
+Replication Cockpit Calendar function along with Data Job schedules to set this up.
+No "unused" / "disabled" tables present in extractions?	
+Limited the columns extracted to only those necessary?	
+Filters are applied to large tables?	
+All extractions placed in a single data pool, and data connections exported to process-
+specific data pools.	This is a best practice to avoid extracting the same data more than 
+one.
+Dynamic Parameters utilized in Delta Filter section (Last Loads, Change Number, etc.)?
+	This applies if you use Delta extractions with Data Jobs
+Transformation scripts	Review each step in each transformation script for :	
+a. Ensure that changes to any Marketplace Connector are commented with Initials, Date 
+and Commentary	Commented changes with dates allow for easier Connector updates 
+in the future.
+b. Ensure each block of code has unambiguous explanation of the purpose of the block of 
+code	
+c. ANALYZE_STATISTICS('XXXX'); used on all temporary tables	
+d. No Select Distincts (unless there is a comment present as to why it is needed)	
+e. Appropriate naming convention utlized
+Cases Table: <<Process Name>> + _ + <<Table Name>> (eg. CLAIMS_CASES)
+Activities Table: _CEL_ + <<Process Name>> + _ACTIVITIES (eg. _CEL_CLAIMS_ACTIVITIES)
+	
+f. Intuitive Variable naming	
+g. No "unused" transformations (i.e. "Testing", "Sandbox", etc) present in Data Job	
+Transformations - Additional	Temporary Tables utilized?	Use temporary tables if you run 
+similar joins across multiple transformations.
+Ensure that there are no cartesian (many-to-many) joins present	
+Use WHERE EXISTS rather than joins where applicable	
+Can transformation jobs be run in parallel?	If transformations are independent of one 
+another, you can consider splitting them into separate Data Jobs and running them in 
+parallel with a schedule.
+Data Model Loads	No error messages on Data Model upload (including warnings)	
+Using tables instead of views to load to Data Model?	
+Using a Data Model with the minimal number of tables and columns for a high speed use 
+case?	
+Subscribed to all Data Models?	
+Replication Cockpit	Replication Cockpit replicating without errors?	
+Programaci¢n (Scheduling)	Full / Delta Loads scheduled, enabled, and running?	
+Execution History	Processing Time for Delta ETL (Extraction>Transform>Data Model) 
+run time less than 1 hour (unless other circumstances override)	
+Schedules have no errors in recent history?	
+Data Validation	Confirm that customer has approved the accuracy of the Raw Data 
+and Activity Steps	
+
+That is it! Do you have feedback on this list or any other input? Feel free to reach out to 
+our support team. 
+
+
+
+
+
